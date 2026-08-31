@@ -1,14 +1,238 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Hermes</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Alumni+Sans+Pinstripe&family=Roboto:wght@300;500;700&family=SN+Pro:wght@200;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../static/home.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Relay — Message Feed</title>
+<link rel="stylesheet" href="../static/home.css">
 </head>
-
 <body>
+
+<div class="app" id="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark"></span>
+      <span class="brand-name">Relay</span>
+    </div>
+    <button class="icon-btn" id="manageBtn" aria-label="Manage groups">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h6"/></svg>
+    </button>
+  </div>
+
+  <div class="rail" id="rail"></div>
+
+  <div class="feed" id="feed"></div>
+
+  <div class="sheet-sheetBackdrop" id="sheetBackdrop"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">Watched groups</div>
+    <div class="sheet-sub">Turn a group on to pull its messages into your feed.</div>
+    <div class="sheet-list" id="sheetList"></div>
+    <button class="sheet-done" id="sheetDone">Done</button>
+  </div>
+
+</div>
+
+<script>
+  // ---------- Mock data (Flask will replace this with real API/webhook data) ----------
+  const groups = [
+    { id: "fam",   name: "Family",            color: "#e8879a", watched: true  },
+    { id: "proj",  name: "Capstone Team",     color: "#f4a8b6", watched: true  },
+    { id: "deals", name: "Campus Deals",      color: "#c96a80", watched: true  },
+    { id: "flat",  name: "Flatmates",         color: "#7fc4a6", watched: false },
+    { id: "cric",  name: "Sunday Cricket",    color: "#d99aa8", watched: false },
+  ];
+
+  const messages = [
+    { id: 1, groupId: "fam",  sender: "Amma",        time: "8:02 AM",  day: "Today", text: "Reminder — call the electrician before 6pm today.", forwarded: true  },
+    { id: 2, groupId: "proj", sender: "Rakesh",       time: "9:14 AM",  day: "Today", text: "Pushed the Flask routes for auth. Can someone review before standup?", forwarded: false },
+    { id: 3, groupId: "deals",sender: "Campus Deals", time: "9:40 AM",  day: "Today", text: "50% off at Cafe Noir today only, show this message at counter.", forwarded: true, media: true },
+    { id: 4, groupId: "proj", sender: "Meera",        time: "10:05 AM", day: "Today", text: "Meeting moved to 4pm, same link.", forwarded: false },
+    { id: 5, groupId: "fam",  sender: "Appa",         time: "7:45 PM",  day: "Yesterday", text: "Sent you the flight details, check your email.", forwarded: true },
+    { id: 6, groupId: "deals",sender: "Campus Deals", time: "11:20 AM", day: "Yesterday", text: "New stationery store opened near gate 2, 20% intro discount.", forwarded: false },
+    { id: 7, groupId: "proj", sender: "Bindu Madavi", time: "1:52 PM",  day: "Yesterday", forwardedFrom: true, media: true, forwarded: true, text:
+`Dear Students,
+
+Centre for Advanced Research in Digital Forensics and Cyber Security (ARDC), in collaboration with the Department of CSE, Department of ADSE & CompTIA, is organising an industry-focused workshop, Your AI Cybersecurity Journey.
+
+🎙️ Dr. James Stanger
+Chief Technology Evangelist & Director, Product Development, CompTIA, USA
+
+📅 03 September 2026
+⏰ 10:00 AM – 12:00 PM
+📍 Auditorium, Block I, CHRIST University, Bengaluru
+
+✨ Gain global industry insights and guidance to build a strong Cybersecurity career portfolio.
+
+👥 For students of the Cyber Security Research Cluster and B.Tech CSE (Honors in Cyber Security).
+
+📲 Register by scanning the QR code in the poster.
+
+Learn. Explore. Build your Cybersecurity journey! 🚀` },
+  ];
+
+  const initials = (name) => name.split(" ").map(w => w[0]).slice(0,2).join("").toUpperCase();
+
+  let activeFilter = "all";
+
+  function renderRail(){
+    const rail = document.getElementById("rail");
+    const active = groups.filter(g => g.watched);
+    rail.innerHTML = "";
+
+    const allChip = document.createElement("button");
+    allChip.className = "chip" + (activeFilter === "all" ? " active" : "");
+    allChip.innerHTML = `<span class="dot"></span> All`;
+    allChip.onclick = () => { activeFilter = "all"; renderRail(); renderFeed(); };
+    rail.appendChild(allChip);
+
+    active.forEach(g => {
+      const chip = document.createElement("button");
+      chip.className = "chip" + (activeFilter === g.id ? " active" : "");
+      chip.style.color = activeFilter === g.id ? "#fff" : g.color;
+      chip.innerHTML = `<span class="dot"></span> ${g.name}`;
+      chip.onclick = () => { activeFilter = g.id; renderRail(); renderFeed(); };
+      rail.appendChild(chip);
+    });
+  }
+
+  function renderFeed(){
+    const feed = document.getElementById("feed");
+    const watchedIds = groups.filter(g => g.watched).map(g => g.id);
+    const visible = messages.filter(m =>
+      watchedIds.includes(m.groupId) && (activeFilter === "all" || m.groupId === activeFilter)
+    );
+
+    feed.innerHTML = "";
+
+    if (visible.length === 0){
+      feed.innerHTML = `
+        <div class="empty">
+          <div class="empty-mark">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#e8879a" stroke-width="2" stroke-linecap="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </div>
+          <h3>No messages yet</h3>
+          <p>Turn on a group from the menu above and its messages will start showing up here.</p>
+        </div>`;
+      return;
+    }
+
+    let lastDay = null;
+    visible.forEach(m => {
+      if (m.day !== lastDay){
+        const div = document.createElement("div");
+        div.className = "day-divider";
+        div.textContent = m.day;
+        feed.appendChild(div);
+        lastDay = m.day;
+      }
+
+      const group = groups.find(g => g.id === m.groupId);
+      const isLong = m.text.length > 240 || (m.text.match(/\n/g) || []).length > 3;
+      const row = document.createElement("div");
+      row.className = "msg";
+      row.innerHTML = `
+        <div class="avatar" style="background:${group.color}">${initials(m.sender)}</div>
+        <div class="msg-body">
+          ${m.forwardedFrom ? `
+            <div class="fwd-tag">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 1l4 4-4 4M3 11V9a4 4 0 014-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 01-4 4H3"/></svg>
+              Forwarded
+            </div>` : ""}
+          <div class="msg-head">
+            <span class="msg-sender">${m.sender}</span>
+            <span class="msg-group">${group.name}</span>
+            <span class="msg-time">${m.time}</span>
+          </div>
+          ${m.media ? `<div class="msg-media">Image attachment</div>` : ""}
+          <div class="msg-text ${isLong ? "clamped" : ""}" data-full="${isLong ? "false" : ""}">${m.text}</div>
+          ${isLong ? `<button class="read-more">Read more</button>` : ""}
+          <div class="msg-actions">
+            <span class="fwd-status ${m.forwarded ? "sent" : ""}">
+              ${m.forwarded
+                ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg> Forwarded`
+                : `Not forwarded`}
+            </span>
+            <button class="fwd-btn ${m.forwarded ? "done" : ""}" data-id="${m.id}">
+              ${m.forwarded ? "Forwarded" : "Forward"}
+            </button>
+          </div>
+        </div>
+      `;
+      feed.appendChild(row);
+
+      if (isLong){
+        const textEl = row.querySelector(".msg-text");
+        const toggleBtn = row.querySelector(".read-more");
+        toggleBtn.addEventListener("click", () => {
+          const expanded = textEl.dataset.full === "true";
+          textEl.classList.toggle("clamped", expanded);
+          textEl.dataset.full = expanded ? "false" : "true";
+          toggleBtn.textContent = expanded ? "Read more" : "Read less";
+        });
+      }
+    });
+
+    feed.querySelectorAll(".fwd-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const id = Number(e.currentTarget.dataset.id);
+        const msg = messages.find(m => m.id === id);
+        msg.forwarded = !msg.forwarded;
+        // TODO: replace with a real call to your Flask endpoint, e.g.
+        // fetch(`/api/messages/${id}/forward`, { method: "POST" })
+        renderFeed();
+      });
+    });
+  }
+
+  // ---------- Group management sheet ----------
+  const sheet = document.getElementById("sheet");
+  const backdropEl = document.getElementById("sheetBackdrop");
+
+  function openSheet(){
+    renderSheetList();
+    sheet.classList.add("open");
+    backdropEl.classList.add("open");
+  }
+  function closeSheet(){
+    sheet.classList.remove("open");
+    backdropEl.classList.remove("open");
+    if (!groups.some(g => g.id === activeFilter && g.watched)) activeFilter = "all";
+    renderRail();
+    renderFeed();
+  }
+
+  function renderSheetList(){
+    const list = document.getElementById("sheetList");
+    list.innerHTML = "";
+    groups.forEach(g => {
+      const row = document.createElement("div");
+      row.className = "sheet-row";
+      row.innerHTML = `
+        <div class="sheet-row-avatar" style="background:${g.color}">${initials(g.name)}</div>
+        <div class="sheet-row-info">
+          <div class="sheet-row-name">${g.name}</div>
+          <div class="sheet-row-meta">${g.watched ? "Messages syncing" : "Not syncing"}</div>
+        </div>
+        <div class="toggle ${g.watched ? "on" : ""}" data-id="${g.id}"></div>
+      `;
+      row.querySelector(".toggle").addEventListener("click", () => {
+        g.watched = !g.watched;
+        renderSheetList();
+      });
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById("manageBtn").addEventListener("click", openSheet);
+  document.getElementById("sheetDone").addEventListener("click", closeSheet);
+  backdropEl.addEventListener("click", closeSheet);
+
+  renderRail();
+  renderFeed();
+</script>
+
 </body>
+</html>
