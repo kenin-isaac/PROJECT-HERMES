@@ -63,9 +63,12 @@
     flex-shrink: 0;
   }
   .brand-name{
-    font-size: 1.05rem;
-    font-weight: 650;
-    letter-spacing: -0.01em;
+    font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 1.2rem;
+    letter-spacing: 0.01em;
+    color: var(--ink);
   }
   .icon-btn{
     width: 34px; height: 34px;
@@ -189,6 +192,7 @@
   .msg-text.clamped{
     display: -webkit-box;
     -webkit-line-clamp: 4;
+    line-clamp: 4;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -240,22 +244,32 @@
   .fwd-status svg{ width: 12px; height: 12px; }
   .fwd-status.sent{ color: var(--success-ink); }
 
-  .fwd-btn{
-    border: 1px solid var(--line);
-    background: var(--panel);
-    color: var(--ink);
-    font-size: 0.76rem;
-    font-weight: 600;
-    padding: 5px 11px;
-    border-radius: 7px;
-    cursor: pointer;
+  .action-icons{
+    display: flex;
+    align-items: center;
+    gap: 8px;
     margin-left: auto;
-    transition: background .15s ease, border-color .15s ease;
   }
-  .fwd-btn:active{ transform: scale(0.97); }
+  .icon-round{
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: var(--line);
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s ease, color .15s ease, transform .1s ease;
+  }
+  .icon-round svg{ width: 15px; height: 15px; }
+  .icon-round:active{ transform: scale(0.93); }
+
+  .dismiss-btn:hover{ background: var(--danger); color: #fff; }
+
   .fwd-btn.done{
-    background: var(--success-soft);
-    border-color: var(--success-soft);
+    background: var(--panel);
     color: var(--success-ink);
   }
 

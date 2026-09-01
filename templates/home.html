@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Relay — Message Feed</title>
+<title>Hermes — Message Feed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@1,500;1,600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../static/home.css">
 </head>
 <body>
@@ -13,7 +16,7 @@
   <div class="topbar">
     <div class="brand">
       <span class="brand-mark"></span>
-      <span class="brand-name">Relay</span>
+      <span class="brand-name">Hermes</span>
     </div>
     <button class="icon-btn" id="manageBtn" aria-label="Manage groups">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h10M4 18h6"/></svg>
@@ -155,9 +158,14 @@ Learn. Explore. Build your Cybersecurity journey! 🚀` },
                 ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg> Forwarded`
                 : `Not forwarded`}
             </span>
-            <button class="fwd-btn ${m.forwarded ? "done" : ""}" data-id="${m.id}">
-              ${m.forwarded ? "Forwarded" : "Forward"}
-            </button>
+            <div class="action-icons">
+              <button class="icon-round dismiss-btn" data-id="${m.id}" aria-label="Dismiss message">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              </button>
+              <button class="icon-round fwd-btn ${m.forwarded ? "done" : ""}" data-id="${m.id}" aria-label="Forward message">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -182,6 +190,17 @@ Learn. Explore. Build your Cybersecurity journey! 🚀` },
         msg.forwarded = !msg.forwarded;
         // TODO: replace with a real call to your Flask endpoint, e.g.
         // fetch(`/api/messages/${id}/forward`, { method: "POST" })
+        renderFeed();
+      });
+    });
+
+    feed.querySelectorAll(".dismiss-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        const id = Number(e.currentTarget.dataset.id);
+        const idx = messages.findIndex(m => m.id === id);
+        if (idx !== -1) messages.splice(idx, 1);
+        // TODO: replace with a real call to your Flask endpoint, e.g.
+        // fetch(`/api/messages/${id}`, { method: "DELETE" })
         renderFeed();
       });
     });
